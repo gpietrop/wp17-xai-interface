@@ -68,14 +68,46 @@ st.caption("Mock interface for testing the structure of the WP17 clinician-facin
 df = load_data()
 
 with st.sidebar:
-    st.header("Patient selection")
-    patient_id = st.selectbox("Select patient", df["patient_id"])
+    st.header("Input")
+    input_mode = st.radio(
+        "Choose input mode",
+        ["Select mock patient", "Enter new patient"],
+    )
 
-patient = df.loc[df["patient_id"] == patient_id].iloc[0]
+if input_mode == "Select mock patient":
+    with st.sidebar:
+        patient_id = st.selectbox("Select patient", df["patient_id"])
+
+    patient = df.loc[df["patient_id"] == patient_id].iloc[0]
+
+else:
+    st.sidebar.subheader("New patient data")
+
+    patient = pd.Series(
+        {
+            "patient_id": "NEW_PATIENT",
+            "age": st.sidebar.number_input("Age", min_value=0, max_value=120, value=50),
+            "sex": st.sidebar.selectbox("Sex", ["F", "M"]),
+            "ldl_c": st.sidebar.number_input("LDL-C", min_value=0, value=190),
+            "hdl_c": st.sidebar.number_input("HDL-C", min_value=0, value=50),
+            "triglycerides": st.sidebar.number_input("Triglycerides", min_value=0, value=120),
+            "lipoprotein_a": st.sidebar.number_input("Lipoprotein(a)", min_value=0, value=30),
+            "family_history": int(st.sidebar.checkbox("Family history")),
+            "has_pathogenic_variant": int(st.sidebar.checkbox("Pathogenic variant present")),
+            "previous_cvd_event": int(st.sidebar.checkbox("Previous CVD event")),
+            "risk_label": "Not available",
+        }
+    )
+
 probability = get_mock_probability(patient)
 
-risk_class = patient["risk_label"]
-
+if probability >= 0.70:
+    risk_class = "High"
+elif probability >= 0.35:
+    risk_class = "Medium"
+else:
+    risk_class = "Low"
+    
 col1, col2, col3 = st.columns(3)
 
 with col1:

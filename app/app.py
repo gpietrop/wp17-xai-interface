@@ -1,60 +1,24 @@
 from pathlib import Path
+import sys
 
 import pandas as pd
 import streamlit as st
 
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.append(str(ROOT))
+
+from src.risk_model import (
+    assign_risk_class,
+    explain_prediction,
+    get_model_rule,
+    predict_probability,
+)
+
 DATA_PATH = ROOT / "data" / "mock" / "mock_patients.csv"
 
 
 def load_data() -> pd.DataFrame:
     return pd.read_csv(DATA_PATH)
-
-
-def get_mock_probability(patient: pd.Series) -> float:
-    score = 0.0
-
-    if patient["ldl_c"] > 190:
-        score += 0.30
-    if patient["has_pathogenic_variant"] == 1:
-        score += 0.30
-    if patient["previous_cvd_event"] == 1:
-        score += 0.25
-    if patient["lipoprotein_a"] > 50:
-        score += 0.15
-    if patient["family_history"] == 1:
-        score += 0.10
-
-    return min(score, 0.95)
-
-
-def get_explanation(patient: pd.Series) -> list[str]:
-    reasons = []
-
-    if patient["ldl_c"] > 190:
-        reasons.append("LDL-C is above 190 mg/dL.")
-    if patient["has_pathogenic_variant"] == 1:
-        reasons.append("A pathogenic variant is present.")
-    if patient["previous_cvd_event"] == 1:
-        reasons.append("The patient has a previous cardiovascular event.")
-    if patient["lipoprotein_a"] > 50:
-        reasons.append("Lipoprotein(a) is elevated.")
-    if patient["family_history"] == 1:
-        reasons.append("Family history is positive.")
-
-    if not reasons:
-        reasons.append("No major high-risk factor is detected in this mock explanation.")
-
-    return reasons
-
-
-def get_mock_rule(patient: pd.Series) -> str:
-    if patient["ldl_c"] > 190 and patient["has_pathogenic_variant"] == 1:
-        return "IF LDL-C > 190 AND pathogenic variant = yes THEN high risk"
-    if patient["ldl_c"] > 160 and patient["family_history"] == 1:
-        return "IF LDL-C > 160 AND family history = yes THEN medium risk"
-    return "IF no major high-risk factor is present THEN low risk"
 
 
 st.set_page_config(
@@ -63,7 +27,10 @@ st.set_page_config(
 )
 
 st.title("WP17 XAI Risk Profiling Prototype")
-st.caption("Mock interface for testing the structure of the WP17 clinician-facing tool. Data and predictions are synthetic.")
+st.caption(
+    "Mock interface for testing the structure of the WP17 clinician-facing tool. "
+    "Data and predictions are synthetic."
+)
 
 df = load_data()
 
@@ -71,10 +38,10 @@ with st.sidebar:
     st.header("Input")
     input_mode = st.radio(
         "Choose input mode",
-        ["Select mock patient", "Enter new patient"],
+        ["Select patient", "Enter new patient"],
     )
 
-if input_mode == "Select mock patient":
+if input_mode == "Select patient":
     with st.sidebar:
         patient_id = st.selectbox("Select patient", df["patient_id"])
 
@@ -90,31 +57,35 @@ else:
             "sex": st.sidebar.selectbox("Sex", ["F", "M"]),
             "ldl_c": st.sidebar.number_input("LDL-C", min_value=0, value=190),
             "hdl_c": st.sidebar.number_input("HDL-C", min_value=0, value=50),
-            "triglycerides": st.sidebar.number_input("Triglycerides", min_value=0, value=120),
-            "lipoprotein_a": st.sidebar.number_input("Lipoprotein(a)", min_value=0, value=30),
+            "triglycerides": st.sidebar.number_input(
+                "Triglycerides",
+                min_value=0,
+                value=120,
+            ),
+            "lipoprotein_a": st.sidebar.number_input(
+                "Lipoprotein(a)",
+                min_value=0,
+                value=30,
+            ),
             "family_history": int(st.sidebar.checkbox("Family history")),
-            "has_pathogenic_variant": int(st.sidebar.checkbox("Pathogenic variant present")),
+            "has_pathogenic_variant": int(
+                st.sidebar.checkbox("Pathogenic variant present")
+            ),
             "previous_cvd_event": int(st.sidebar.checkbox("Previous CVD event")),
             "risk_label": "Not available",
         }
     )
 
-probability = get_mock_probability(patient)
+probability = predict_probability(patient)
+risk_class = assign_risk_class(probability)
 
-if probability >= 0.70:
-    risk_class = "High"
-elif probability >= 0.35:
-    risk_class = "Medium"
-else:
-    risk_class = "Low"
-    
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.metric("Predicted risk class", risk_class)
 
 with col2:
-    st.metric("Mock risk probability", f"{probability:.0%}")
+    st.metric("Risk probability", f"{probability:.0%}")
 
 with col3:
     st.metric("Patient age", int(patient["age"]))
@@ -132,11 +103,11 @@ with left:
 with right:
     st.subheader("Explanation")
 
-    for reason in get_explanation(patient):
+    for reason in explain_prediction(patient):
         st.write(f"- {reason}")
 
     st.subheader("Model rule")
-    st.code(get_mock_rule(patient), language="text")
+    st.code(get_model_rule(patient), language="text")
 
 st.divider()
 

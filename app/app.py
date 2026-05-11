@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 import streamlit as st
 
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
@@ -14,7 +15,9 @@ from src.risk_model import (
     predict_probability,
 )
 
+
 DATA_PATH = ROOT / "data" / "mock" / "mock_patients.csv"
+LOGO_PATH = ROOT / "app" / "assets" / "fh-early-logo.png"
 
 
 def load_data() -> pd.DataFrame:
@@ -22,15 +25,22 @@ def load_data() -> pd.DataFrame:
 
 
 st.set_page_config(
-    page_title="WP17 XAI Risk Prototype",
+    page_title="FH-EARLY WP17 Prototype",
     layout="wide",
 )
 
-st.title("WP17 XAI Risk Profiling Prototype")
-st.caption(
-    "Mock interface for testing the structure of the WP17 clinician-facing tool. "
-    "Data and predictions are synthetic."
-)
+header_left, header_right = st.columns([1, 5])
+
+with header_left:
+    if LOGO_PATH.exists():
+        st.image(str(LOGO_PATH), width=140)
+
+with header_right:
+    st.title("FH-EARLY WP17: Explainable Risk Profiling Prototype")
+    st.caption(
+        "Early clinician-facing prototype for testing the patient-level prediction and explanation workflow. "
+        "The current data and predictions are synthetic placeholders."
+    )
 
 df = load_data()
 
@@ -38,10 +48,10 @@ with st.sidebar:
     st.header("Input")
     input_mode = st.radio(
         "Choose input mode",
-        ["Select patient", "Enter new patient"],
+        ["Select mock patient", "Enter new patient"],
     )
 
-if input_mode == "Select patient":
+if input_mode == "Select mock patient":
     with st.sidebar:
         patient_id = st.selectbox("Select patient", df["patient_id"])
 
@@ -106,14 +116,13 @@ with right:
     for reason in explain_prediction(patient):
         st.write(f"- {reason}")
 
-    st.subheader("Model rule")
+    st.subheader("Interpretable rule")
     st.code(get_model_rule(patient), language="text")
 
 st.divider()
 
-st.subheader("Clinical note")
+st.subheader("Prototype note")
 st.info(
-    "This prototype is only a structural mock-up. "
-    "The current risk scores and explanations are rule-based placeholders. "
-    "They will later be replaced by WP17 explainable models trained on WP16 features."
+    "This prototype is used to test the expected WP17 workflow before real data and WP16 features are available. "
+    "The current risk scores and explanations are placeholders and are not clinically meaningful."
 )
